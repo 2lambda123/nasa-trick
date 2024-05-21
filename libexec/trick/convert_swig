@@ -290,7 +290,8 @@ sub process_file() {
 
         my $out_file ;
         $out_file = basename($f) ;
-        $out_file =~ s/(\.h|\.H|\.hh|\.h\+\+|\.hxx|\.hpp)$/_py\.i/ ;
+        $out_file =~ s/(\.hh|\.h\+\+|\.hxx|\.hpp)$/_cpp_py\.i/ ;
+        $out_file =~ s/(\.h|\.H)$/_c_py\.i/ ;
 
         $out_file = "$out_dir/${out_file}" ;
 

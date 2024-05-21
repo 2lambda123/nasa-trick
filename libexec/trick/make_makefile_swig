@@ -174,45 +174,82 @@ TRICK_FIXED_PYTHON = \\
 \t\$(call ECHO_AND_LOG,/bin/cp -f \$< \$@)
 
 # SWIG_I =======================================================================
+" ;
 
-SWIG_I =" ;
+    my $c_files = "" ;
+    my $cpp_files = "" ;
 
     foreach my $file ( @files_to_process ) {
-        (my $swig_file = $file) =~ s/(\.[^.]*)?$/_py/ ;
-        print MAKEFILE " \\\n    build$swig_file.i" ;
+        print $file ;
+        my $swig_file = "";
+        if($file =~ /(\.h|\.H)$/) {
+            ($swig_file = $file) =~ s/(\.[^.]*)?$/_c_py/ ;
+            $c_files =  $c_files." \\\n    build$swig_file.i" ;
+        }
+        else {
+            ($swig_file = $file) =~ s/(\.[^.]*)?$/_cpp_py/ ;
+            $cpp_files =  $cpp_files." \\\n    build$swig_file.i" ;
+        }
         print PY_LINK_LIST "build$swig_file.o\n" ;
         print TRICKIFY_PY_LINK_LIST "build$swig_file.o\n" ;
     }
 
     print MAKEFILE "
+SWIG_I_C = $c_files
+SWIG_I_CPP = $cpp_files" ;
 
-define create_convert_swig_rule
-build/%_py.i: /%.\$1
+    my $swig_call_cpp = "\$(call ECHO_AND_LOG,\$(SWIG) \$(TRICK_INCLUDE) \$(TRICK_DEFINES) \$(TRICK_VERSIONS) \$(TRICK_SWIG_FLAGS) -c++ -python -includeall -ignoremissing -w201 -w303 -w315 -w325 -w362 -w389 -w401 -w451 -MMD -MP -outdir $swig_sim_dir -o \$@ \$<)" ;
+
+    my $swig_call_c = "\$(call ECHO_AND_LOG,\$(SWIG) \$(TRICK_INCLUDE) \$(TRICK_DEFINES) \$(TRICK_VERSIONS) \$(TRICK_SWIG_FLAGS) -python -includeall -ignoremissing -w201 -w303 -w315 -w325 -w362 -w389 -w401 -w451 -MMD -MP -outdir $swig_sim_dir -o \$@ \$<)" ;
+
+    print MAKEFILE "
+
+define create_convert_swig_rule_c
+build/%_c_py.i: /%.\$1
 \t\$\$(call ECHO_AND_LOG,\${TRICK_HOME}/\$(LIBEXEC)/trick/convert_swig \$\${TRICK_CONVERT_SWIG_FLAGS} \$\$<)
 endef
 
-\$(foreach EXTENSION,H h hh hxx h++ hpp,\$(eval \$(call create_convert_swig_rule,\$(EXTENSION))))
+\$(foreach EXTENSION,H h hh hxx h++ hpp,\$(eval \$(call create_convert_swig_rule_c,\$(EXTENSION))))
+
+define create_convert_swig_rule_cpp
+build/%_cpp_py.i: /%.\$1
+\t\$\$(call ECHO_AND_LOG,\${TRICK_HOME}/\$(LIBEXEC)/trick/convert_swig \$\${TRICK_CONVERT_SWIG_FLAGS} \$\$<)
+endef
+
+\$(foreach EXTENSION,hh hxx h++ hpp,\$(eval \$(call create_convert_swig_rule_cpp,\$(EXTENSION))))
 
 build/top.i: build/CP_instances
 \t\$(call ECHO_AND_LOG,\${PYTHON} \${TRICK_HOME}/\${LIBEXEC}/trick/create_top_dot_i)
 
 # SWIG_SRC =====================================================================
 
-SWIG_SRC = \$(subst .i,.cpp,\$(SWIG_I)) $swig_src_dir/top.cpp
+SWIG_SRC_C = \$(subst .i,.c,\$(SWIG_I_C))
+SWIG_SRC_CPP = \$(subst .i,.cpp,\$(SWIG_I_CPP)) $swig_src_dir/top.cpp
+SWIG_SRC := \$(SWIG_SRC_C) \$(SWIG_SRC_CPP)
 
-\$(SWIG_SRC) : %.cpp: %.i | %.d \$(SWIG_I)
+\$(SWIG_SRC_C) : %.c: %.i | %.d \$(SWIG_I_C)
 \t\$(PRINT_SWIG)
-\t\$(call ECHO_AND_LOG,\$(SWIG) \$(TRICK_INCLUDE) \$(TRICK_DEFINES) \$(TRICK_VERSIONS) \$(TRICK_SWIG_FLAGS) -c++ -python -includeall -ignoremissing -w201 -w303 -w315 -w325 -w362 -w389 -w401 -w451 -MMD -MP -outdir $swig_sim_dir -o \$@ \$<)
+\t$swig_call_c
 
-\$(SWIG_SRC:.cpp=.d): ;
+\$(SWIG_SRC_CPP) : %.cpp: %.i | %.d \$(SWIG_I_CPP)
+\t\$(PRINT_SWIG)
+\t$swig_call_cpp
 
--include \$(SWIG_SRC:.cpp=.d)
+\$(SWIG_SRC_CPP:.cpp=.d): ;
+
+-include \$(SWIG_SRC_CPP:.cpp=.d)
+
+\$(SWIG_SRC_C:.c=.d): ;
+
+-include \$(SWIG_SRC_C:.c=.d)
+
 
 # SWIG_OBJECTS =================================================================
 
-SWIG_OBJECTS = \$(subst .cpp,.o,\$(SWIG_SRC)) $swig_src_dir/init_swig_modules.o
+SWIG_OBJECTS_CPP = \$(subst .cpp,.o,\$(SWIG_SRC_CPP)) $swig_src_dir/init_swig_modules.o
+SWIG_OBJECTS_C = \$(subst .c,.o,\$(SWIG_SRC_C)) $swig_src_dir/init_swig_modules.o
 
-\$(SWIG_OBJECTS): %.o: %.cpp
+\$(SWIG_OBJECTS_CPP): %.o: %.cpp
 \t\$(PRINT_COMPILE_SWIG)
 \t\$(call ECHO_AND_LOG,\$(TRICK_CXX) \$(TRICK_CXXFLAGS) \$(TRICK_SYSTEM_CXXFLAGS) \$(TRICK_SWIG_CFLAGS) \$(TRICK_SYSTEM_SWIG_CFLAGS) -Wno-unused-parameter -c -o \$@ \$<)
 

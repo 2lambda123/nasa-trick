@@ -15,6 +15,6 @@ with open('build/CP_instances') as cp_instances:
           instances + '\n'
           '%}\n'
           '\n'
-          '%import "build' + path + '/S_source_py.i"\n'
+          '%import "build' + path + '/S_source_cpp_py.i"\n'
           '\n' +
           instances)
